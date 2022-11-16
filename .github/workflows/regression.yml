@@ -7,17 +7,32 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+          - { name: ubuntu,             os: ubuntu-latest,  cross-target: '' }
+          - { name: macos-x86_64,       os: macos-latest,   cross-target: '' }
+          - { name: macos-aarch64,      os: macos-latest,   cross-target: aarch64-apple-darwin }
+          - { name: windows,            os: windows-latest, cross-target: '' }
         rust: [stable]
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Setup Rust
-      uses: hecrj/setup-rust-action@v1
-      with:
-        rust-version: ${{ matrix.rust }}
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        default: true
+        # The macOS AArch64 build is done from an x86_64 macOS CI runner, so
+        # it needs to be cross compiled
+        target: ${{ matrix.cross-target }}
     - name: Run tests
+      if: '!matrix.cross-target'
+      # We can run natively
       run: cargo test
+    - name: Build test
+      # We can only test build on cross-compiled platform
+      if: matrix.cross-target
+      run: cargo build --release --target="${{ matrix.cross-target }}"

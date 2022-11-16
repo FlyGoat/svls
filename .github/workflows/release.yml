@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
@@ -10,32 +11,46 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+          - { name: ubuntu,             os: ubuntu-latest,  cross-target: x86_64-unknown-linux-musl }
+          - { name: macos,              os: macos-latest,   cross-target: 'aarch64-apple-darwin' }
+          - { name: windows,            os: windows-latest, cross-target: '' }
         rust: [stable]
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Setup Rust
-      uses: hecrj/setup-rust-action@v1
-      with:
-        rust-version: ${{ matrix.rust }}
     - name: Checkout
-      uses: actions/checkout@v1
-    - name: Setup MUSL
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        rustup target add x86_64-unknown-linux-musl
-        sudo apt-get -qq install musl-tools
+      uses: actions/checkout@v2
+
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      if: matrix.os == 'ubuntu'
+      with:
+        packages: musl-tools
+        version: 1.0
+    
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        default: true
+        # The macOS AArch64 build is done from an x86_64 macOS CI runner, so
+        # it needs to be cross compiled
+        target: ${{ matrix.cross-target }}
+
     - name: Build for linux
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu'
       run: make release_lnx
     - name: Build for macOS
-      if: matrix.os == 'macOS-latest'
+      if: matrix.os == 'macos'
       run: make release_mac
     - name: Build for Windows
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows'
       run: make release_win
+    - uses: actions/upload-artifact@v3
+      with:
+        path: '*.zip'
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
