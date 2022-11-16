@@ -28,6 +28,15 @@ release_win:
 	cargo build --release --target=x86_64-pc-windows-msvc
 	7z a ${BIN_NAME}-v${VERSION}-x86_64-win.zip target/x86_64-pc-windows-msvc/release/${BIN_NAME}.exe
 
-release_mac:
+release_mac_x86_64:
 	cargo build --release --target=x86_64-apple-darwin
 	zip -j ${BIN_NAME}-v${VERSION}-x86_64-mac.zip target/x86_64-apple-darwin/release/${BIN_NAME}
+
+release_mac_arm64:
+	cargo build --release --target=aarch64-apple-darwin
+	zip -j ${BIN_NAME}-v${VERSION}-arm64-mac.zip target/aarch64-apple-darwin/release/${BIN_NAME}
+
+release_mac: release_mac_x86_64 release_mac_arm64
+	mkdir -p target/apple-darwin/release
+	lipo -create -output target/apple-darwin/release/${BIN_NAME} target/x86_64-apple-darwin/release/${BIN_NAME} target/aarch64-apple-darwin/release/${BIN_NAME}
+	zip -j ${BIN_NAME}-v${VERSION}-mac.zip target/apple-darwin/release/${BIN_NAME}
